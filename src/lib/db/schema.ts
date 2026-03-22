@@ -219,6 +219,23 @@ export const generatedImages = pgTable("generated_images", {
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 });
 
+// Subscriptions
+export const subscriptions = pgTable("subscriptions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" })
+    .unique(),
+  plan: varchar("plan", { length: 20 }).notNull().default("free").$type<"free" | "pro" | "enterprise">(),
+  status: varchar("status", { length: 20 }).notNull().default("active"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  currentPeriodStart: timestamp("current_period_start", { mode: "date" }),
+  currentPeriodEnd: timestamp("current_period_end", { mode: "date" }),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+});
+
 // Credit Usage Log
 export const creditUsage = pgTable("credit_usage", {
   id: uuid("id").defaultRandom().primaryKey(),

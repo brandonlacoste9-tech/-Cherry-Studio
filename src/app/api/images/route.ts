@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       style: style || "vivid",
     });
 
-    const images = response.data.map((img) => ({
+    const images = (response.data || []).map((img: { url?: string; revised_prompt?: string }) => ({
       url: img.url,
       revisedPrompt: img.revised_prompt,
     }));

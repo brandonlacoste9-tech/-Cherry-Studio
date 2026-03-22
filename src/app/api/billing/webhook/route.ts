@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
           .update(subscriptions)
           .set({
             status: subscription.status === "active" ? "active" : "past_due",
-            currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+            currentPeriodEnd: new Date((subscription as unknown as { current_period_end: number }).current_period_end * 1000),
             updatedAt: new Date(),
           })
           .where(eq(subscriptions.stripeSubscriptionId, subId));
@@ -89,15 +89,16 @@ export async function POST(request: NextRequest) {
       }
 
       case "invoice.payment_failed": {
-        const invoice = event.data.object as Stripe.Invoice;
-        if (invoice.subscription) {
+        const invoice = event.data.object as unknown as Record<string, unknown>;
+        const invoiceSubId = invoice.subscription as string | null;
+        if (invoiceSubId) {
           await db
             .update(subscriptions)
             .set({
               status: "past_due",
               updatedAt: new Date(),
             })
-            .where(eq(subscriptions.stripeSubscriptionId, invoice.subscription as string));
+            .where(eq(subscriptions.stripeSubscriptionId, invoiceSubId));
         }
         break;
       }
