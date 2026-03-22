@@ -134,9 +134,9 @@ export default function LandingPage() {
               <Link href="/login">
                 <Button variant="ghost" size="sm">Sign In</Button>
               </Link>
-              <Link href="/register">
+              <Link href="/chat">
                 <Button size="sm" className="bg-primary hover:bg-primary/90">
-                  Get Started <ArrowRight className="ml-1 h-4 w-4" />
+                  Try Free <ArrowRight className="ml-1 h-4 w-4" />
                 </Button>
               </Link>
             </div>
@@ -152,7 +152,7 @@ export default function LandingPage() {
         </div>
         <div className="max-w-5xl mx-auto text-center relative z-10">
           <Badge variant="secondary" className="mb-6 px-4 py-1.5 text-sm">
-            <Zap className="mr-1 h-3.5 w-3.5" /> 5 AI Providers — One Studio
+            <Zap className="mr-1 h-3.5 w-3.5" /> 50 free credits — no sign-up required
           </Badge>
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
             <span className="bg-gradient-to-r from-white via-white to-white/70 bg-clip-text text-transparent">Your AI.</span>{" "}
@@ -164,13 +164,13 @@ export default function LandingPage() {
             Chat with GPT-4.1, Claude, DeepSeek, and more. Generate code, build agents, manage knowledge bases, and create images — all from one premium AI studio.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/register">
+            <Link href="/chat">
               <Button size="lg" className="text-base px-8 bg-primary hover:bg-primary/90">
                 Start Building Free <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
-            <Link href="/chat">
-              <Button size="lg" variant="outline" className="text-base px-8">Try Chat Studio</Button>
+            <Link href="/login">
+              <Button size="lg" variant="outline" className="text-base px-8">Sign In</Button>
             </Link>
           </div>
           <div className="mt-8 flex items-center justify-center gap-6 text-sm text-muted-foreground">
@@ -247,7 +247,7 @@ export default function LandingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Link href="/register">
+                  <Link href={tier.name === "Free" ? "/chat" : `/register?plan=${tier.name.toLowerCase()}`}>
                     <Button className={`w-full ${tier.highlighted ? "bg-primary hover:bg-primary/90" : ""}`} variant={tier.highlighted ? "default" : "outline"}>
                       {tier.cta}
                     </Button>
@@ -267,9 +267,9 @@ export default function LandingPage() {
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">Ready to build with AI?</h2>
           <p className="text-muted-foreground text-lg mb-8">Join thousands of developers and creators using AdgenAI to supercharge their workflow.</p>
-          <Link href="/register">
+          <Link href="/chat">
             <Button size="lg" className="text-base px-8 bg-primary hover:bg-primary/90">
-              Get Started Free <ArrowRight className="ml-2 h-5 w-5" />
+              Start Free — No Sign-Up <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </Link>
         </div>

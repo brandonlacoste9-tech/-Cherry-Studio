@@ -1,15 +1,21 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { ChatMessage } from "@/components/chat/chat-message";
 import { ChatInput } from "@/components/chat/chat-input";
 import { ChatSidebar } from "@/components/chat/chat-sidebar";
 import { ModelSelector } from "@/components/chat/model-selector";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Sparkles, PanelLeftClose, PanelLeft } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Sparkles, PanelLeftClose, PanelLeft, Zap } from "lucide-react";
 import type { AIProvider } from "@/types";
 import { v4 as uuid } from "uuid";
+
+const GUEST_CREDIT_KEY = "adgenai_guest_credits";
+const GUEST_CREDIT_LIMIT = 50;
 
 interface Message {
   id: string;
@@ -30,14 +36,28 @@ interface Conversation {
 }
 
 export default function ChatPage() {
+  const { data: session } = useSession();
+  const router = useRouter();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState("gpt-4.1-mini");
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>("openai");
   const [isStreaming, setIsStreaming] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [guestCredits, setGuestCredits] = useState<number>(GUEST_CREDIT_LIMIT);
+  const [showCreditBanner, setShowCreditBanner] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Load guest credits from localStorage
+  useEffect(() => {
+    if (!session) {
+      const stored = localStorage.getItem(GUEST_CREDIT_KEY);
+      const credits = stored ? parseInt(stored, 10) : GUEST_CREDIT_LIMIT;
+      setGuestCredits(credits);
+      if (credits <= 10) setShowCreditBanner(true);
+    }
+  }, [session]);
 
   const activeConversation = conversations.find((c) => c.id === activeId);
   const messages = activeConversation?.messages || [];
@@ -65,6 +85,20 @@ export default function ChatPage() {
 
   const handleSend = useCallback(
     async (content: string) => {
+      // Guest credit gate
+      if (!session) {
+        const stored = localStorage.getItem(GUEST_CREDIT_KEY);
+        const credits = stored ? parseInt(stored, 10) : GUEST_CREDIT_LIMIT;
+        if (credits <= 0) {
+          router.push("/register?reason=credits");
+          return;
+        }
+        const newCredits = credits - 1;
+        localStorage.setItem(GUEST_CREDIT_KEY, String(newCredits));
+        setGuestCredits(newCredits);
+        if (newCredits <= 10) setShowCreditBanner(true);
+      }
+
       let conv = activeConversation;
       if (!conv) {
         conv = createConversation();
@@ -232,7 +266,7 @@ export default function ChatPage() {
         abortRef.current = null;
       }
     },
-    [activeConversation, selectedModel, selectedProvider, createConversation]
+    [activeConversation, selectedModel, selectedProvider, createConversation, session, router]
   );
 
   const handleStop = () => {
@@ -241,7 +275,24 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full flex-col">
+      {/* Guest credit banner */}
+      {!session && showCreditBanner && (
+        <div className="flex items-center justify-between px-4 py-2 bg-primary/10 border-b border-primary/20 text-sm">
+          <span className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-primary" />
+            <span>{guestCredits} free credits remaining. <strong>Sign up free</strong> to get more.</span>
+          </span>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-primary border-primary/40">{guestCredits} left</Badge>
+            <Button size="sm" variant="default" onClick={() => router.push("/register")}>
+              Sign Up Free
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setShowCreditBanner(false)}>✕</Button>
+          </div>
+        </div>
+      )}
+      <div className="flex flex-1 min-h-0">
       {/* Chat history sidebar */}
       {showSidebar && (
         <ChatSidebar
@@ -324,6 +375,7 @@ export default function ChatPage() {
             placeholder={`Message ${selectedModel}...`}
           />
         </div>
+      </div>
       </div>
     </div>
   );
