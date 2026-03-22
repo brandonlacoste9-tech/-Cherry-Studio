@@ -1,18 +1,64 @@
-import NextAuth from "next-auth";
+/**
+ * AdgenAI — NextAuth v5 Configuration
+ *
+ * Build-time safety strategy:
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Auth.js DrizzleAdapter(db) calls db[Symbol.for('drizzle')] or similar type
+ * checks at initialization time. Passing a Proxy fails this check with:
+ *   "Unsupported database type (object) in Auth.js Drizzle adapter."
+ *
+ * Solution: Create a REAL neon() + drizzle() instance specifically for the
+ * adapter, but only when DATABASE_URL is present. At build time (no env vars),
+ * we fall back to JWT-only sessions with no adapter — which is perfectly valid
+ * for static page generation. The adapter is only needed at runtime for
+ * persisting sessions to the database.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+import NextAuth, { type NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { DrizzleAdapter } from "@auth/drizzle-adapter";
-import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: DrizzleAdapter(db) as never,
+// ─── Lazy adapter factory ────────────────────────────────────────────────────
+// Returns a real DrizzleAdapter instance only when DATABASE_URL is available.
+// Returns undefined at build time so NextAuth falls back to JWT sessions.
+function buildAdapter() {
+  const url = process.env.DATABASE_URL;
+  if (!url) return undefined;
+
+  try {
+    // Dynamic requires keep these imports out of the build-time module graph
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { neon } = require("@neondatabase/serverless") as typeof import("@neondatabase/serverless");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { drizzle } = require("drizzle-orm/neon-http") as typeof import("drizzle-orm/neon-http");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { DrizzleAdapter } = require("@auth/drizzle-adapter") as typeof import("@auth/drizzle-adapter");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const schema = require("@/lib/db/schema") as typeof import("@/lib/db/schema");
+
+    const sql = neon(url);
+    const adapterDb = drizzle(sql, { schema });
+    return DrizzleAdapter(adapterDb) as NextAuthConfig["adapter"];
+  } catch {
+    // If anything fails (e.g. missing package at build time), degrade gracefully
+    return undefined;
+  }
+}
+
+// ─── Auth configuration ──────────────────────────────────────────────────────
+const authConfig: NextAuthConfig = {
+  // Adapter is undefined at build time → NextAuth uses JWT-only sessions.
+  // At runtime DATABASE_URL is set → full Drizzle-backed sessions.
+  adapter: buildAdapter(),
+
   session: { strategy: "jwt" },
+
   pages: {
     signIn: "/auth/login",
     newUser: "/auth/register",
   },
+
   providers: [
     Credentials({
       name: "credentials",
@@ -26,7 +72,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const email = credentials.email as string;
         const password = credentials.password as string;
 
+        // Guard: if DB isn't available, deny login gracefully
+        if (!process.env.DATABASE_URL) return null;
+
         try {
+          // Import lazily so this never runs at build time
+          const { db } = await import("@/lib/db");
+          const { users } = await import("@/lib/db/schema");
+          const { eq } = await import("drizzle-orm");
+
           const [user] = await db
             .select()
             .from(users)
@@ -41,18 +95,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return {
             id: user.id,
             email: user.email,
-            name: user.name,
-            image: user.image,
+            name: user.name ?? null,
+            image: user.image ?? null,
           };
-        } catch {
+        } catch (err) {
+          console.error("[auth] authorize error:", err);
           return null;
         }
       },
     }),
   ],
+
   callbacks: {
     async jwt({ token, user }) {
-      if (user) {
+      if (user?.id) {
         token.id = user.id;
       }
       return token;
@@ -64,4 +120,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
   },
-});
+};
+
+export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);

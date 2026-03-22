@@ -1,13 +1,17 @@
 /**
- * AdgenAI — Edge Middleware (Next.js 16)
+ * AdgenAI — Edge Proxy (Next.js 16)
+ *
+ * In Next.js 16, the middleware file is named `proxy.ts` (or `src/proxy.ts`).
+ * The old `middleware.ts` name still works but emits a deprecation warning.
+ * This file uses the new Next.js 16 convention.
  *
  * Adds security response headers to every non-static request.
  * Auth protection is handled per-page via NextAuth session checks.
  *
- * Next.js 16 middleware conventions:
- *  - Export a named `middleware` function (unchanged)
- *  - Export a `config` object with a `matcher` array (unchanged)
- *  - The `runtime` export is optional; omitting it defaults to "edge"
+ * Next.js 16 proxy conventions:
+ *  - Export a named `middleware` function (same API as before)
+ *  - Export a `config` object with a `matcher` array
+ *  - `export const runtime = "edge"` opts into the Edge runtime
  */
 
 import { type NextRequest, NextResponse } from "next/server";
