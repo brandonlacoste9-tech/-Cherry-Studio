@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { subscriptions } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2024-12-18.acacia" as Stripe.LatestApiVersion,
-});
 
 export async function POST() {
   try {
@@ -29,6 +24,12 @@ export async function POST() {
         { status: 404 }
       );
     }
+
+    // Lazy Stripe initialization — only runs at request time, not build time
+    const Stripe = (await import("stripe")).default;
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+      apiVersion: "2024-12-18.acacia" as never,
+    });
 
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: sub.stripeCustomerId,

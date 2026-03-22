@@ -1,14 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
 import { db } from "@/lib/db";
-import { subscriptions, users } from "@/lib/db/schema";
+import { subscriptions } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2024-12-18.acacia" as Stripe.LatestApiVersion,
-});
-
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +12,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No signature" }, { status: 400 });
     }
 
-    let event: Stripe.Event;
+    // Lazy Stripe initialization — only runs at request time, not build time
+    const Stripe = (await import("stripe")).default;
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+      apiVersion: "2024-12-18.acacia" as never,
+    });
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let event: any;
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
     } catch (err) {
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
 
     switch (event.type) {
       case "checkout.session.completed": {
-        const session = event.data.object as Stripe.Checkout.Session;
+        const session = event.data.object;
         const userId = session.metadata?.userId;
         const plan = session.metadata?.plan;
 
@@ -62,14 +63,14 @@ export async function POST(request: NextRequest) {
       }
 
       case "customer.subscription.updated": {
-        const subscription = event.data.object as Stripe.Subscription;
+        const subscription = event.data.object;
         const subId = subscription.id;
 
         await db
           .update(subscriptions)
           .set({
             status: subscription.status === "active" ? "active" : "past_due",
-            currentPeriodEnd: new Date((subscription as unknown as { current_period_end: number }).current_period_end * 1000),
+            currentPeriodEnd: new Date(subscription.current_period_end * 1000),
             updatedAt: new Date(),
           })
           .where(eq(subscriptions.stripeSubscriptionId, subId));
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
       }
 
       case "customer.subscription.deleted": {
-        const subscription = event.data.object as Stripe.Subscription;
+        const subscription = event.data.object;
         await db
           .update(subscriptions)
           .set({
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
       }
 
       case "invoice.payment_failed": {
-        const invoice = event.data.object as unknown as Record<string, unknown>;
+        const invoice = event.data.object;
         const invoiceSubId = invoice.subscription as string | null;
         if (invoiceSubId) {
           await db

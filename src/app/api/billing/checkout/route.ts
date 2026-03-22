@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
 import { auth } from "@/lib/auth";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2024-12-18.acacia" as Stripe.LatestApiVersion,
-});
 
 const PRICE_IDS: Record<string, string> = {
   pro: process.env.STRIPE_PRO_PRICE_ID || "price_pro",
@@ -24,6 +19,12 @@ export async function POST(request: NextRequest) {
     if (!priceId) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
+
+    // Lazy Stripe initialization — only runs at request time, not build time
+    const Stripe = (await import("stripe")).default;
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+      apiVersion: "2024-12-18.acacia" as never,
+    });
 
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "subscription",
