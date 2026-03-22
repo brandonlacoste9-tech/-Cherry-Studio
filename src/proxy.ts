@@ -16,8 +16,6 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 
-export const runtime = "edge";
-
 export function proxy(request: NextRequest) {
   const response = NextResponse.next({ request });
 
