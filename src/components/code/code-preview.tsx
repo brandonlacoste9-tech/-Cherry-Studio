@@ -1,27 +1,62 @@
 "use client";
-
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Copy, Check, ExternalLink, Download } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Copy, Check, Download, Eye, Code2 } from "lucide-react";
+import {
+  SandpackProvider,
+  SandpackLayout,
+  SandpackPreview,
+  SandpackCodeEditor,
+} from "@codesandbox/sandpack-react";
 
 interface CodePreviewProps {
   code: string;
   isGenerating?: boolean;
 }
 
+function extractComponentCode(raw: string): string {
+  return raw
+    .replace(/```[a-z]*\n?/g, "")
+    .replace(/```\n?/g, "")
+    .trim();
+}
+
 export function CodePreview({ code, isGenerating }: CodePreviewProps) {
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<"preview" | "code">("preview");
 
+  const cleanCode = useMemo(() => extractComponentCode(code), [code]);
+
+  const appCode = useMemo(() => {
+    const hasDefaultExport = /export\s+default/.test(cleanCode);
+    if (hasDefaultExport) {
+      return `import Component from "./Component";
+export default function App() {
+  return (
+    <div style={{padding:"1rem",minHeight:"100vh",background:"#fff"}}>
+      <Component />
+    </div>
+  );
+}`;
+    }
+    return `export default function App() {
+  return (
+    <div style={{padding:"1rem",color:"#666",fontFamily:"system-ui"}}>
+      <p>Component generated — switch to Code tab to view.</p>
+    </div>
+  );
+}`;
+  }, [cleanCode]);
+
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(code);
+    await navigator.clipboard.writeText(cleanCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDownload = () => {
-    const blob = new Blob([code], { type: "text/typescript" });
+    const blob = new Blob([cleanCode], { type: "text/typescript" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -30,83 +65,73 @@ export function CodePreview({ code, isGenerating }: CodePreviewProps) {
     URL.revokeObjectURL(url);
   };
 
-  // Create a simple HTML preview from the code
-  const previewHtml = useMemo(() => {
-    // Extract just the JSX/TSX return content for preview
-    const cleanCode = code
-      .replace(/```[a-z]*\n?/g, "")
-      .replace(/```\n?/g, "")
-      .trim();
-
-    return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { background: #0a0a0a; color: #f5f5f5; font-family: system-ui, sans-serif; padding: 1rem; }
-    .preview-note { text-align: center; padding: 2rem; color: #888; font-size: 0.875rem; }
-  </style>
-</head>
-<body>
-  <div class="preview-note">
-    <p>Live preview requires a React runtime.</p>
-    <p>Switch to the <strong>Code</strong> tab to view the generated component.</p>
-    <pre style="text-align:left;background:#111;padding:1rem;border-radius:0.5rem;overflow-x:auto;margin-top:1rem;font-size:0.75rem;max-height:400px;overflow-y:auto"><code>${cleanCode.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre>
-  </div>
-</body>
-</html>`;
-  }, [code]);
-
   return (
-    <div className="flex flex-col h-full border border-border/50 rounded-lg overflow-hidden">
-      <Tabs
-        value={activeTab}
-        onValueChange={(v) => setActiveTab(v as "preview" | "code")}
-        className="flex flex-col h-full"
-      >
-        <div className="flex items-center justify-between px-3 py-2 border-b border-border/40 bg-muted/30">
-          <TabsList className="h-8">
-            <TabsTrigger value="preview" className="text-xs h-7 px-3">
-              Preview
+    <div className="flex flex-col h-full border border-border/50 rounded-xl overflow-hidden shadow-sm">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border/40 bg-muted/20">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "preview" | "code")}>
+          <TabsList className="h-8 bg-background/60">
+            <TabsTrigger value="preview" className="text-xs h-7 px-3 gap-1.5">
+              <Eye className="h-3 w-3" /> Preview
             </TabsTrigger>
-            <TabsTrigger value="code" className="text-xs h-7 px-3">
-              Code
+            <TabsTrigger value="code" className="text-xs h-7 px-3 gap-1.5">
+              <Code2 className="h-3 w-3" /> Code
             </TabsTrigger>
           </TabsList>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon-xs" onClick={handleCopy}>
-              {copied ? (
-                <Check className="h-3 w-3 text-green-500" />
-              ) : (
-                <Copy className="h-3 w-3" />
-              )}
-            </Button>
-            <Button variant="ghost" size="icon-xs" onClick={handleDownload}>
-              <Download className="h-3 w-3" />
-            </Button>
-          </div>
+        </Tabs>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon-xs" onClick={handleCopy} title="Copy code">
+            {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+          </Button>
+          <Button variant="ghost" size="icon-xs" onClick={handleDownload} title="Download">
+            <Download className="h-3.5 w-3.5" />
+          </Button>
         </div>
+      </div>
 
-        <TabsContent value="preview" className="flex-1 m-0">
-          <iframe
-            srcDoc={previewHtml}
-            className="w-full h-full border-0 bg-black"
-            sandbox="allow-scripts"
-            title="Code Preview"
-          />
-        </TabsContent>
-
-        <TabsContent value="code" className="flex-1 m-0 overflow-auto">
-          <pre className="p-4 text-sm font-mono bg-muted/20 h-full overflow-auto">
-            <code>{code.replace(/```[a-z]*\n?/g, "").replace(/```\n?/g, "").trim()}</code>
-          </pre>
-          {isGenerating && (
-            <span className="inline-block w-2 h-4 bg-primary animate-pulse" />
-          )}
-        </TabsContent>
-      </Tabs>
+      <div className="flex-1 min-h-0">
+        {activeTab === "preview" ? (
+          <SandpackProvider
+            template="react-ts"
+            theme="light"
+            files={{
+              "/Component.tsx": cleanCode,
+              "/App.tsx": appCode,
+            }}
+            options={{
+              externalResources: ["https://cdn.tailwindcss.com"],
+            }}
+          >
+            <SandpackLayout style={{ height: "100%", border: "none" }}>
+              <SandpackPreview
+                style={{ height: "100%", flex: 1 }}
+                showNavigator={false}
+                showOpenInCodeSandbox={false}
+              />
+            </SandpackLayout>
+          </SandpackProvider>
+        ) : (
+          <div className="relative h-full">
+            <SandpackProvider
+              template="react-ts"
+              theme="light"
+              files={{ "/Component.tsx": cleanCode }}
+            >
+              <SandpackLayout style={{ height: "100%", border: "none" }}>
+                <SandpackCodeEditor
+                  style={{ height: "100%", flex: 1 }}
+                  showTabs={false}
+                  showLineNumbers
+                />
+              </SandpackLayout>
+            </SandpackProvider>
+            {isGenerating && (
+              <div className="absolute bottom-4 right-4">
+                <span className="inline-block w-2 h-5 bg-primary animate-pulse rounded-sm" />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

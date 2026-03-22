@@ -12,6 +12,7 @@
     "@ai-sdk/anthropic": "^3.0.63",
     "@ai-sdk/openai": "^3.0.47",
     "@auth/drizzle-adapter": "^1.11.1",
+    "@codesandbox/sandpack-react": "^2.20.0",
     "@hookform/resolvers": "^5.2.2",
     "@neondatabase/serverless": "^1.0.2",
     "@stripe/stripe-js": "^8.11.0",

@@ -31,7 +31,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <SessionProvider>
-          <ThemeProvider defaultTheme="dark" storageKey="adgenai-theme">
+          <ThemeProvider defaultTheme="light" storageKey="adgenai-theme">
             <I18nProvider>
               {children}
               <Toaster />

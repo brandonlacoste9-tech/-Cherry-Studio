@@ -155,10 +155,10 @@ export default function LandingPage() {
             <Zap className="mr-1 h-3.5 w-3.5" /> 50 free credits — no sign-up required
           </Badge>
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
-            <span className="bg-gradient-to-r from-white via-white to-white/70 bg-clip-text text-transparent">Your AI.</span>{" "}
+            <span className="text-foreground">Your AI.</span>{" "}
             <span className="bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">Your Studio.</span>
             <br />
-            <span className="bg-gradient-to-r from-white/70 via-white to-white bg-clip-text text-transparent">Your Rules.</span>
+            <span className="text-foreground">Your Rules.</span>
           </h1>
           <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
             Chat with GPT-4.1, Claude, DeepSeek, and more. Generate code, build agents, manage knowledge bases, and create images — all from one premium AI studio.
